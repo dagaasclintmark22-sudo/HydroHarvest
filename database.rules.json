@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "sensors": {
+      "current": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "controls": {
+      "servo_angle": {
+        ".read": true,
+        ".write": true
+      },
+      "harvestLid": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "maintenance": {
+      ".read": true,
+      ".write": true
+    },
+    "settings": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

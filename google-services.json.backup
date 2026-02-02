@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "220364613204",
+    "project_id": "hydroharvest-1bfd0",
+    "storage_bucket": "hydroharvest-1bfd0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:220364613204:android:0bc6a5b079551c64b32fc1",
+        "android_client_info": {
+          "package_name": "com.example.hydro_harvest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQTkc3tnUKqdzqJqbNCczrMmttyHWOJ3c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
