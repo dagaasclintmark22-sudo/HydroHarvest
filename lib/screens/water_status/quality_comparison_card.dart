@@ -102,7 +102,12 @@ class QualityComparisonCard extends StatelessWidget {
     required String standard,
     required bool isSafe,
     required String unit,
+    bool isMissing = false,
   }) {
+    final displayColor = isMissing 
+        ? Colors.grey 
+        : (isSafe ? const Color(0xFF00B894) : const Color(0xFFFF7675));
+        
     return Row(
       children: [
         Expanded(
@@ -120,7 +125,7 @@ class QualityComparisonCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Standard: $standard$unit',
+                'Standard: $standard${unit.trim() != '' ? unit : ''}',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],
@@ -135,19 +140,21 @@ class QualityComparisonCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '$value$unit',
+                  isMissing ? value : '$value$unit',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: isSafe ? const Color(0xFF00B894) : const Color(0xFFFF7675),
+                    color: displayColor,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  isSafe ? Icons.check_circle : Icons.warning_amber_rounded,
-                  color: isSafe ? const Color(0xFF00B894) : const Color(0xFFFF7675),
-                  size: 20,
-                ),
+                if (!isMissing) ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    isSafe ? Icons.check_circle : Icons.warning_amber_rounded,
+                    color: displayColor,
+                    size: 20,
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 4),

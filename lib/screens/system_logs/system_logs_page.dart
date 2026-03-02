@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hydro_harvest/screens/notification/notification_page.dart';
 import 'package:hydro_harvest/screens/dashboard/dashboard_page.dart';
 import 'package:hydro_harvest/screens/water_status/water_status_page.dart';
+import 'package:hydro_harvest/screens/analytics/analytics_page.dart';
 import 'package:hydro_harvest/screens/profile/profile_page.dart';
 import 'package:hydro_harvest/services/realtime_sensor_service.dart';
 
@@ -14,47 +17,76 @@ class SystemLogsPage extends StatefulWidget {
 
 class _SystemLogsPageState extends State<SystemLogsPage> {
   final RealtimeSensorService _sensorService = RealtimeSensorService();
+  late final Stream<Map<String, int>> _maintenanceStream;
+  late final Stream<Map<String, dynamic>> _settingsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _maintenanceStream = _sensorService.maintenanceStream;
+    _settingsStream = _sensorService.settingsStream;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/hydro_logo.png',
+              height: 36,
+              width: 36,
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'HydroHarvest',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF283593),
+                  ),
+                ),
+                Text(
+                  'System',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ProfilePage()),
+                );
+              },
+              child: const CircleAvatar(
+                backgroundColor: Color(0xFFE8EAF6),
+                child: Icon(Icons.person, color: Color(0xFF283593)),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'System',
-                    style: GoogleFonts.lora(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2D3436),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => ProfilePage()),
-                      );
-                    },
-                    child: const CircleAvatar(
-                      backgroundColor: Color(0xFFE8EAF6),
-                      child: Icon(Icons.person, color: Color(0xFF283593)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -76,13 +108,13 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                         
                         final status = snapshot.data!;
                         return Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(20), // Increased padding
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20), // 16 -> 20
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -119,10 +151,10 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20), // 16 -> 20
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -135,7 +167,7 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    '${hours.toStringAsFixed(1)} Hours Used',
+                                    '${hours.toInt()} Hours Used',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -170,6 +202,28 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    if (await _verifyPassword(context)) {
+                                      await _sensorService.resetUvRuntime();
+                                      if (context.mounted) {
+                                         NotificationPage.addLog('UV Lamp Replacement', 'User reset UV lamp runtime timer to 0.');
+                                         _showSuccessDialog('UV Lamp runtime reset successfully');
+                                      }
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: remaining > 0 ? const Color(0xFFE8EAF6) : Colors.red,
+                                    foregroundColor: remaining > 0 ? const Color(0xFF283593) : Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  child: const Text('Replace Lamp & Reset Timer'),
+                                ),
+                              )
                             ],
                           ),
                         );
@@ -181,8 +235,32 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                     // Filter Usage Time Section
                     _buildSectionTitle('Filter Usage Time'),
                     StreamBuilder<Map<String, int>>(
-                      stream: _sensorService.maintenanceStream,
+                      stream: _maintenanceStream,
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                           return Container(
+                            height: 200,
+                            padding: const EdgeInsets.all(20),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.amber, size: 40),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Error loading filter data',
+                                  style: TextStyle(color: Colors.grey[800]),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        // Show loading only if we truly have no data and no error
                         if (!snapshot.hasData) {
                           return Container(
                             height: 200,
@@ -213,7 +291,7 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                     // Calibration Options (Moved from Settings)
                     _buildSectionTitle('Calibration Options'),
                     StreamBuilder<Map<String, dynamic>>(
-                      stream: _sensorService.settingsStream,
+                      stream: _settingsStream,
                       builder: (context, snapshot) {
                         final settings = snapshot.data ?? {};
                         final calibSettings = settings['calibration'] ?? {};
@@ -240,6 +318,7 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.opacity), label: 'Water Status'),
           BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'System'), // Renamed from System Health
+          BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analytics'),
         ],
         onTap: (index) {
           if (index == 0) {
@@ -261,9 +340,124 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
           }
 
           if (index == 2) return;
+
+          if (index == 3) {
+            Navigator.pushReplacement(context,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const AnalyticsPage(),
+                transitionDuration: Duration.zero,
+              ),
+            );
+          }
         },
       ),
     );
+  }
+
+  Future<void> _showSuccessDialog(String message) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'Success!',
+              style: GoogleFonts.lora(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF2D3436)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _verifyPassword(BuildContext context) async {
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool? authorized = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        String? errorMessage;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Security Check'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Please enter your password to confirm this action.'),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        border: const OutlineInputBorder(),
+                        errorText: errorMessage, // Display error here
+                      ),
+                      onChanged: (_) {
+                        if (errorMessage != null) {
+                          setState(() => errorMessage = null);
+                        }
+                      },
+                      validator: (value) => value?.isEmpty ?? true ? 'Password required' : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      try {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user != null && user.email != null) {
+                          final cred = EmailAuthProvider.credential(
+                            email: user.email!, 
+                            password: passwordController.text
+                          );
+                          await user.reauthenticateWithCredential(cred);
+                          if (context.mounted) Navigator.pop(context, true);
+                        } else {
+                          setState(() => errorMessage = 'No user authenticated');
+                        }
+                      } catch (e) {
+                         setState(() => errorMessage = 'Incorrect Password');
+                      }
+                    }
+                  },
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+    return authorized ?? false;
   }
 
   Widget _buildSectionTitle(String title) {
@@ -287,10 +481,10 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20), // 16 -> 20
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -420,12 +614,16 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              _sensorService.updateCalibrationDate(key);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$name maintenance logged')),
-              );
+            onPressed: () async {
+              // Ask for password before action
+               if (await _verifyPassword(context)) {
+                  _sensorService.updateCalibrationDate(key);
+                  if (context.mounted) {
+                    NotificationPage.addLog('$name Calibration', 'User marked $name sensor as calibrated.');
+                    Navigator.pop(context);
+                    _showSuccessDialog('$name maintenance logged');
+                  }
+               }
             },
             child: const Text('Mark as Calibrated'),
           ),
@@ -436,6 +634,8 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
 
   Widget _buildStatusRow(String sensorName, String status) {
     final isOk = status == 'OK';
+    final displayStatus = status.startsWith('Offline') ? 'Offline' : status;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -452,7 +652,9 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: isOk ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: isOk
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -464,7 +666,7 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  status,
+                  displayStatus,
                   style: TextStyle(
                     color: isOk ? Colors.green : Colors.red,
                     fontWeight: FontWeight.bold,
@@ -492,12 +694,19 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
     final statusColor = isExpired ? Colors.red : Colors.green;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16), // Increased spacing
+      padding: const EdgeInsets.all(20), // Increased padding
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(20), // 16 -> 20
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03), // Subtle shadow
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        // Removed border to match "card" look, or keep it subtle? Let's remove border for cleaner look if shadow is present
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -556,24 +765,16 @@ class _SystemLogsPageState extends State<SystemLogsPage> {
               leading: const Icon(Icons.refresh, color: Colors.blue),
               title: const Text('Reset Timer'),
               subtitle: const Text('Use after standard replacement'),
-              onTap: () {
-                _sensorService.updateMaintenanceDate(key);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$name timer reset successfully')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.upgrade, color: Colors.orange),
-              title: const Text('Custom Replacement'),
-              subtitle: const Text('Force reset for upgrade/early change'),
-              onTap: () {
-                _sensorService.updateMaintenanceDate(key);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$name status updated (Custom)')),
-                );
+              onTap: () async {
+                // Ask for password
+                if (await _verifyPassword(context)) {
+                  _sensorService.updateMaintenanceDate(key);
+                  if (context.mounted) {
+                    NotificationPage.addLog('$name Filter Reset', 'User reset timer for $name filter.');
+                    Navigator.pop(context);
+                    _showSuccessDialog('$name timer reset successfully');
+                  }
+                }
               },
             ),
           ],

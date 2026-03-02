@@ -16,6 +16,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
@@ -150,12 +151,23 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 child: TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: !_isPasswordVisible,
+                  decoration: InputDecoration(
                     hintText: 'Password',
                     border: InputBorder.none,
                     contentPadding:
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ),

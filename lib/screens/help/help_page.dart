@@ -176,7 +176,7 @@ class HelpPage extends StatelessWidget {
         _buildSafetyItem(
           'Turbidity',
           'Measures cloudiness. High turbidity can shield bacteria from UV light, making purification less effective.',
-          'Safe Limit: < 0.5 NTU (Clear)',
+          'Safe Limit: < 5 NTU (Clear)',
           Icons.opacity,
           Colors.brown,
         ),

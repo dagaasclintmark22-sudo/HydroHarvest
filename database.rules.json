@@ -14,6 +14,10 @@
       "harvestLid": {
         ".read": true,
         ".write": true
+      },
+      "harvest_lid": {
+        ".read": true,
+        ".write": true
       }
     },
     "maintenance": {
@@ -23,6 +27,21 @@
     "settings": {
       ".read": true,
       ".write": true
+    },
+    "logs": {
+      ".read": true,
+      ".write": true
+    },
+    "analytics": {
+      ".read": true,
+      ".write": true,
+      "minutes": {
+        "$deviceId": {
+          ".read": true,
+          ".write": true,
+          ".indexOn": ["timestamp"]
+        }
+      }
     }
   }
 }

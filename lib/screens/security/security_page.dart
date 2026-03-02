@@ -32,64 +32,92 @@ class _SecurityPageState extends State<SecurityPage> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Change Password',
-          style: GoogleFonts.lora(fontWeight: FontWeight.bold),
-        ),
-        content: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _currentPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Current Password'),
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+      builder: (context) {
+        bool isCurrentVisible = false;
+        bool isNewVisible = false;
+        bool isConfirmVisible = false;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                'Change Password',
+                style: GoogleFonts.lora(fontWeight: FontWeight.bold),
               ),
-              TextFormField(
-                controller: _newPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'New Password'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Required';
-                  if (value.length < 6) return 'Min 6 characters';
-                  return null;
-                },
+              content: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _currentPasswordController,
+                      obscureText: !isCurrentVisible,
+                      decoration: InputDecoration(
+                        labelText: 'Current Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(isCurrentVisible ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () => setState(() => isCurrentVisible = !isCurrentVisible),
+                        ),
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                    ),
+                    TextFormField(
+                      controller: _newPasswordController,
+                      obscureText: !isNewVisible,
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(isNewVisible ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () => setState(() => isNewVisible = !isNewVisible),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Required';
+                        if (value.length < 6) return 'Min 6 characters';
+                        return null;
+                      },
+                    ),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: !isConfirmVisible,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm New Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(isConfirmVisible ? Icons.visibility : Icons.visibility_off),
+                          onPressed: () => setState(() => isConfirmVisible = !isConfirmVisible),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value != _newPasswordController.text) return 'Passwords do not match';
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
               ),
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirm New Password'),
-                validator: (value) {
-                  if (value != _newPasswordController.text) return 'Passwords do not match';
-                  return null;
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_formKey.currentState!.validate()) {
-                Navigator.pop(context);
-                await _changePassword();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF283593),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      Navigator.pop(context);
+                      await _changePassword();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF283593),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Update'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

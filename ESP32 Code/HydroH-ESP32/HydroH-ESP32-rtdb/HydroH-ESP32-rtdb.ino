@@ -16,8 +16,8 @@
   void streamTimeoutCallback(bool timeout);
 
   // --- User config ---
-  const char* ssid = "TP-Link_19C2";
-  const char* password = "71199238";
+  const char* ssid = "Realme 8";
+  const char* password = "giyangiyan";
 
   // Firebase Config
   #define API_KEY "AIzaSyCQTkc3tnUKqdzqJqbNCczrMmttyHWOJ3c"
@@ -78,7 +78,7 @@
   #define ADC_RESOLUTION 4095.0
 
   // Calibrated values
-  const float DEFAULT_VOLTAGE_AT_PH7 = 2.70f;
+  const float DEFAULT_VOLTAGE_AT_PH7 = 2.55f;
   const float DEFAULT_VOLTAGE_AT_PH4 = 3.20f;
   float voltageAtPH7 = DEFAULT_VOLTAGE_AT_PH7;
   float voltageAtPH4 = DEFAULT_VOLTAGE_AT_PH4;
@@ -135,11 +135,6 @@
 
   String lcdOverrideLine3 = "";               // Temporary message on LCD line 3
   unsigned long lcdOverrideUntilMs = 0;
-
-  // UV Runtime Tracking
-  unsigned long uvRuntimeSeconds = 0;       // Total seconds UV has been on
-  unsigned long lastUVRuntimeCheckMs = 0;   // Timestamp for counting seconds
-  unsigned long lastUVSaveMs = 0;           // Timestamp for periodic saving
 
   // Stagnation / No-Rain Logic REMOVED (Reverting to Manual)
 
@@ -343,7 +338,6 @@
       // 2. UV ON -- SHARP single step
         pwm.setPWM(uvPin, 0, UV_MAX_PULSE);
       uvIsOn = true;
-      lastUVRuntimeCheckMs = millis(); // Start tracking time
     }
   }
 
@@ -365,8 +359,6 @@
     // 2. Option B: Close UV immediately (no cooldown)
     if (uvIsOn) {
       pwm.setPWM(uvPin, 0, UV_MIN_PULSE);
-      // Save runtime immediately on close
-      Firebase.RTDB.setInt(&fbdo, "/maintenance/uv_runtime_seconds", uvRuntimeSeconds);
       uvIsOn = false;
     }
 
@@ -382,9 +374,6 @@
           
           // Close UV Trigger (2) -- SHARP single step
           pwm.setPWM(uvPin, 0, UV_MIN_PULSE);
-
-          // Save runtime immediately on auto-close
-          Firebase.RTDB.setInt(&fbdo, "/maintenance/uv_runtime_seconds", uvRuntimeSeconds);
           
           uvIsOn = false;
           uvCooldown = false; // Timer done
@@ -434,17 +423,6 @@
       Firebase.RTDB.setInt(&fbdo, "/controls/harvest_lid", 0);
       lastHarvestLidCmd = 0;
       Serial.println(">>> Created /controls/harvest_lid = 0");
-    }
-
-    // Load saved UV Runtime
-    if (Firebase.RTDB.getInt(&fbdo, "/maintenance/uv_runtime_seconds")) {
-      uvRuntimeSeconds = fbdo.intData();
-      Serial.printf(">>> Loaded UV Runtime: %lu seconds\n", uvRuntimeSeconds);
-    } else {
-      // Initialize if missing
-      Firebase.RTDB.setInt(&fbdo, "/maintenance/uv_runtime_seconds", 0);
-      uvRuntimeSeconds = 0;
-      Serial.println(">>> Created UV Runtime = 0");
     }
     
     Serial.println(">>> Force Cleared Status & Created Control Path on Boot");
@@ -567,25 +545,6 @@
 
     // Keep trying to recover the stream in the background (polling remains the main reliable path).
     ensureStreamConnected();
-
-    // --- UV Runtime Tracking ---
-    if (uvIsOn) {
-      unsigned long now = millis();
-      if (now - lastUVRuntimeCheckMs >= 1000) {
-        uvRuntimeSeconds += (now - lastUVRuntimeCheckMs) / 1000;
-        lastUVRuntimeCheckMs = now;
-      }
-    } else {
-      // Keep referencing now to avoid huge jumps if state gets desynced briefly
-      lastUVRuntimeCheckMs = millis();
-    }
-
-    // Periodic Save (Every 60s) if UV is ON or just simply to be safe
-    if (isFirebaseInitialized && (millis() - lastUVSaveMs > 60000)) {
-      lastUVSaveMs = millis();
-      // Only write if we have accumulated something or just purely periodic sync
-      Firebase.RTDB.setInt(&fbdo, "/maintenance/uv_runtime_seconds", uvRuntimeSeconds);
-    }
 
     // Handle control commands as early as possible for better button responsiveness.
     if (isFirebaseInitialized) {
@@ -720,7 +679,6 @@
     // 7. FIREBASE REPORTING (Sending data to App)
     static unsigned long lastPost = 0;
     static unsigned long lastHeartbeatMs = 0;
-    static unsigned long lastMinuteSnapshotMs = 0;
     // Reduced to 500ms for faster button feedback
     if (Firebase.ready() && millis() - lastPost > 500) { 
         FirebaseJson json;
@@ -735,28 +693,6 @@
         
         Firebase.RTDB.updateNode(&fbdo, "/sensors/current", &json);
         lastPost = millis();
-
-      // Spark-compatible analytics history: write one sample per minute.
-      // Path: /analytics/minutes/hydroharvest-main/{autoPushId}
-      if (millis() - lastMinuteSnapshotMs > 60000) {
-        FirebaseJson minuteJson;
-        minuteJson.set("ph", pH);
-        minuteJson.set("turbidity", turbidityValue);
-        minuteJson.set("waterLevel", waterPercent);
-        minuteJson.set("collecting", servoOpen);
-        minuteJson.set("waterFull", (waterPercent >= TANK_FULL_PERCENT));
-
-        if (Firebase.RTDB.pushJSON(&fbdo, "/analytics/minutes/hydroharvest-main", &minuteJson)) {
-          String pushKey = fbdo.pushName();
-          if (pushKey.length() > 0) {
-            String tsPath = "/analytics/minutes/hydroharvest-main/" + pushKey + "/timestamp";
-            Firebase.RTDB.setTimestamp(&fbdo, tsPath.c_str());
-          }
-          lastMinuteSnapshotMs = millis();
-        } else {
-          Serial.printf("Minute snapshot failed: %s\n", fbdo.errorReason().c_str());
-        }
-      }
 
       // Heartbeat timestamp used by the Flutter app to decide online/offline.
       // Uses Firebase server time so the phone and device clocks don't matter.

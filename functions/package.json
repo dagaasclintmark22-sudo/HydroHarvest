@@ -7,7 +7,9 @@
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "cleanup:tds:dry": "node scripts/cleanup_tds_alert_logs.js --dry-run",
+    "cleanup:tds": "node scripts/cleanup_tds_alert_logs.js --apply"
   },
   "engines": {
     "node": "24"
